@@ -81,9 +81,6 @@ def mimic_knock_detection(sequence, params):
     maxY_Vel = np.abs(sequence_df['yBuffer_quasi_velocity']).max()
     maxZ_Vel = np.abs(sequence_df['zBuffer_quasi_velocity']).max()
     minZ_Vel = sequence_df['zBuffer_quasi_velocity'].min()
-    
-    divXZ = maxZ_Vel/maxX_Vel
-    divYZ = maxZ_Vel/maxY_Vel
 
     ZImpactReturn = calculate_ZImpactReturn(maxZ_Vel, maxX_Vel, maxY_Vel, minZ_Vel, knock_algo_AngleXLatched)
     Very_High_Impact = calculate_Very_High_Impact(sequence_df['zBuffer'], sequence_df['zBuffer_quasi_velocity'], very_high_counter)
@@ -127,9 +124,9 @@ def calculate_ZImpactReturn(maxZ_Vel, maxX_Vel, maxY_Vel, minZ_Vel, knock_algo_A
     if conditionXZ and conditionYZ:
         result = True
 
-    print('Quotient Z/X is big enough: ', conditionXZ,  ' ---> For positive Recognition required: True')
-    print('Quotient Z/Y is big enough: ', conditionYZ,  ' ---> For positive Recognition required: True')
-    print('ZImpactReturn: ', result,    '              ---> For positive Recognition required: True')
+    #print('Quotient Z/X is big enough: ', conditionXZ,  ' ---> For positive Recognition required: True')
+    #print('Quotient Z/Y is big enough: ', conditionYZ,  ' ---> For positive Recognition required: True')
+    #print('ZImpactReturn: ', result,    '              ---> For positive Recognition required: True')
     return result
 
 ##### Calculate Very_High_Impact & update flag
@@ -149,9 +146,9 @@ def calculate_Very_High_Impact(zBuffer, xBuffer_quasi_velocity, very_high_counte
 
     if condition1 or condition2:
         result = True
-    print('Very_High_Acc_Impact: ', condition1, '       ---> For positive Recognition required: False')
-    print('Very_High_Vel_Impact: ', condition2, '       ---> For positive Recognition required: False')
-    print('Very_High_Impact: ', result, '           ---> For positive Recognition required: False')
+    #print('Very_High_Acc_Impact: ', condition1, '       ---> For positive Recognition required: False')
+    #print('Very_High_Vel_Impact: ', condition2, '       ---> For positive Recognition required: False')
+    #print('Very_High_Impact: ', result, '           ---> For positive Recognition required: False')
 
     return result
 
@@ -165,12 +162,14 @@ def calculate_DeployFlag(zBuffer, zBuffer_quasi_velocity, prebuffer_size, knock_
     
     # Convert to absolute values
     zBuffer_abs = np.abs(zBuffer_sliced)
+    zBuffer_abs = zBuffer_abs
     zBuffer_quasi_velocity_abs = np.abs(zBuffer_quasi_velocity_sliced)
+    zBuffer_quasi_velocity_abs = zBuffer_quasi_velocity_abs/16
     
     # Count values less than 8500
-    count_zBuffer = np.sum(zBuffer_abs < Acc_Latched_Threshold)
+    count_zBuffer = np.sum(zBuffer_abs > Acc_Latched_Threshold)
     
-    count_zBuffer_quasi_velocity = np.sum(zBuffer_quasi_velocity_abs < Vel_Latched_Threshold)
+    count_zBuffer_quasi_velocity = np.sum(zBuffer_quasi_velocity_abs > Vel_Latched_Threshold)
     
 
     # Determine DeployFlag
