@@ -15,7 +15,7 @@ def mimic_knock_detection(sequence, params):
     - int has_it_knocked: 1 if the sequence is considered a valid knock, 0 otherwise.
     """
     # Load and init alld necessary parameters
-    has_it_knocked = 0
+    Has_It_Knocked = 0
     ZImpactReturn = False
     Very_High_Impact = False
     DeployFlag = False 
@@ -23,7 +23,6 @@ def mimic_knock_detection(sequence, params):
     knock_event_length_avg = 65
     knock_event_ended = prebuffer_size + knock_event_length_avg
 
-    enable_threshold = params['KLOPFALGO_EnableThr_s16']
     knock_algo_Vel_Zlatched = params['KLOPFALGO_VelThrZLatched_s32']
     knock_algo_Vel_Zlatched_Counter = params['KLOPFALGO_VelLatchedCounterThr_u8']
     knock_algo_HFA_Zlatched = params['KLOPFALGO_HfaThrZLatched_s16']
@@ -33,9 +32,66 @@ def mimic_knock_detection(sequence, params):
     knock_algo_AngleYLatched = params['KLOPFALGO_WinkelThrYLatched_s16'] 
     knock_algo_AngleZLatched = params['KLOPFALGO_WinkelThrZLatched_s16']
 
+    sequence_df = reshape_sequence(sequence)
+
+    # Calculate the velocities as cumulative sum (integration) of each buffer
+    sequence_df['xBuffer_quasi_velocity'] = np.cumsum(sequence_df['xBuffer'])
+    sequence_df['yBuffer_quasi_velocity'] = np.cumsum(sequence_df['yBuffer'])
+    sequence_df['zBuffer_quasi_velocity'] = np.cumsum(sequence_df['zBuffer'])
+
+    # Calculate the energies of each buffer
+    sequence_df['xBuffer_quasi_energy'] = (sequence_df['xBuffer_quasi_velocity'])**2
+    sequence_df['yBuffer_quasi_energy'] = (sequence_df['yBuffer_quasi_velocity'])**2
+    sequence_df['zBuffer_quasi_energy'] = (sequence_df['zBuffer_quasi_velocity'])**2
+
+    sequence_df['xBuffer_quasi_work'] = np.cumsum(np.abs(sequence_df['xBuffer_quasi_velocity']))
+    sequence_df['yBuffer_quasi_work'] = np.cumsum(np.abs(sequence_df['yBuffer_quasi_velocity']))
+    sequence_df['zBuffer_quasi_work'] = np.cumsum(np.abs(sequence_df['zBuffer_quasi_velocity']))
+
+    knock_event_ended_dynamic = find_knock_event_ended(sequence_df['zBuffer'], knock_algo_HFA_Zlatched, knock_algo_HFA_Zlatched_Counter, prebuffer_size)
+
+    # Nulling values after the knock_event_ended parameter by setting them to 0
+    # Update based on the dynamically determined knock_event_ended value
+    if knock_event_ended_dynamic is not None and knock_event_ended_dynamic != 0:
+        knock_event_ended = knock_event_ended_dynamic
+        sequence_df.loc[knock_event_ended_dynamic+1:, 'xBuffer_quasi_velocity'] = 0
+        sequence_df.loc[knock_event_ended_dynamic+1:, 'yBuffer_quasi_velocity'] = 0
+        sequence_df.loc[knock_event_ended_dynamic+1:, 'zBuffer_quasi_velocity'] = 0
+        sequence_df.loc[knock_event_ended_dynamic+1:, 'xBuffer_quasi_energy'] = 0
+        sequence_df.loc[knock_event_ended_dynamic+1:, 'yBuffer_quasi_energy'] = 0
+        sequence_df.loc[knock_event_ended_dynamic+1:, 'zBuffer_quasi_energy'] = 0
+        sequence_df.loc[knock_event_ended_dynamic+1:, 'xBuffer_quasi_work'] = 0
+        sequence_df.loc[knock_event_ended_dynamic+1:, 'yBuffer_quasi_work'] = 0
+        sequence_df.loc[knock_event_ended_dynamic+1:, 'zBuffer_quasi_work'] = 0
+
+    else:
+        sequence_df.loc[knock_event_ended+1:, 'xBuffer_quasi_velocity'] = 0
+        sequence_df.loc[knock_event_ended+1:, 'yBuffer_quasi_velocity'] = 0
+        sequence_df.loc[knock_event_ended+1:, 'zBuffer_quasi_velocity'] = 0
+        sequence_df.loc[knock_event_ended+1:, 'xBuffer_quasi_energy'] = 0
+        sequence_df.loc[knock_event_ended+1:, 'yBuffer_quasi_energy'] = 0
+        sequence_df.loc[knock_event_ended+1:, 'zBuffer_quasi_energy'] = 0
+        sequence_df.loc[knock_event_ended+1:, 'xBuffer_quasi_work'] = 0
+        sequence_df.loc[knock_event_ended+1:, 'yBuffer_quasi_work'] = 0
+        sequence_df.loc[knock_event_ended+1:, 'zBuffer_quasi_work'] = 0
 
 
-    return has_it_knocked  # Default outcome if no knock is detected
+    #Calculate several keay values
+    maxZ_Acc = np.abs(sequence_df['zBuffer']).max()
+    maxX_Vel = np.abs(sequence_df['xBuffer_quasi_velocity']).max()
+    maxY_Vel = np.abs(sequence_df['yBuffer_quasi_velocity']).max()
+    maxZ_Vel = np.abs(sequence_df['zBuffer_quasi_velocity']).max()
+    minZ_Vel = sequence_df['zBuffer_quasi_velocity'].min()
+    
+    divXZ = maxZ_Vel/maxX_Vel
+    divYZ = maxZ_Vel/maxY_Vel
+
+    ZImpactReturn = calculate_ZImpactReturn(maxZ_Vel, maxX_Vel, maxY_Vel)
+    Very_High_Impact = calculate_Very_High_Impact(sequence_df['zBuffer'], sequence_df['zBuffer_quasi_velocity'], very_high_counter)
+    DeployFlag = calculate_DeployFlag(sequence_df['zBuffer'], sequence_df['zBuffer_quasi_velocity'], prebuffer_size, knock_event_ended, knock_algo_HFA_Zlatched_Counter, knock_algo_Vel_Zlatched_Counter, knock_algo_HFA_Zlatched, knock_algo_Vel_Zlatched)
+    Has_It_Knocked = calculate_Has_It_Knocked(DeployFlag[0], Very_High_Impact, ZImpactReturn)
+
+    return Has_It_Knocked  # Default outcome if no knock is detected
 
 
 # Implement the dynamic knock_event_ended determination
@@ -46,7 +102,6 @@ def find_knock_event_ended(zBuffer, threshold, counter_threshold, prebuffer_size
      refBuffer = np.abs(zBuffer)
      refBuffer_exceedings = (refBuffer[prebuffer_size:] > threshold).sum()
 
-     print(refBuffer_exceedings)
      # Iterate through each item starting from prebuffer_size
      for index in range(prebuffer_size, len(refBuffer)):
          if refBuffer[index] > threshold:
@@ -57,12 +112,18 @@ def find_knock_event_ended(zBuffer, threshold, counter_threshold, prebuffer_size
         
      return None
 
-def calculate_ZImpactReturn(maxZ_Vel, maxX_Vel, maxY_Vel):
+def calculate_ZImpactReturn(maxZ_Vel, maxX_Vel, maxY_Vel, minZ_Vel, knock_algo_AngleXLatched):
     
     result = False
 
+    conditionVelZMinMax = (maxZ_Vel > (minZ_Vel * (-1))) or (maxZ_Vel < maxY_Vel) or (3*maxZ_Vel < 2*maxX_Vel)
+
+    if conditionVelZMinMax:
+        result = False
+
     conditionXZ = (2 * maxZ_Vel > 3 * maxX_Vel)
-    conditionYZ = (3 * maxZ_Vel > 8 * maxY_Vel)
+    conditionYZ = (3 * maxZ_Vel > knock_algo_AngleXLatched * maxY_Vel)
+   
     # Evaluate the condition for ZImpactReturn
     if conditionXZ and conditionYZ:
         result = True
