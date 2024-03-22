@@ -29,10 +29,9 @@ def mimic_knock_detection(sequence, params):
     knock_algo_HFA_Zlatched_Counter = params['KLOPFALGO_HfaLatchedCounterThr_u8']
     very_high_counter = params['KLOPFALGO_VelVeryHighCounterThr_u8']
     knock_algo_AngleXLatched = params['KLOPFALGO_WinkelThrXLatched_s16'] 
-    knock_algo_AngleYLatched = params['KLOPFALGO_WinkelThrYLatched_s16'] 
-    knock_algo_AngleZLatched = params['KLOPFALGO_WinkelThrZLatched_s16']
 
     sequence_df = reshape_sequence(sequence)
+    sequence_df = sequence_df*(-1)
 
     # Calculate the velocities as cumulative sum (integration) of each buffer
     sequence_df['xBuffer_quasi_velocity'] = np.cumsum(sequence_df['xBuffer'])
@@ -86,7 +85,7 @@ def mimic_knock_detection(sequence, params):
     divXZ = maxZ_Vel/maxX_Vel
     divYZ = maxZ_Vel/maxY_Vel
 
-    ZImpactReturn = calculate_ZImpactReturn(maxZ_Vel, maxX_Vel, maxY_Vel)
+    ZImpactReturn = calculate_ZImpactReturn(maxZ_Vel, maxX_Vel, maxY_Vel, minZ_Vel, knock_algo_AngleXLatched)
     Very_High_Impact = calculate_Very_High_Impact(sequence_df['zBuffer'], sequence_df['zBuffer_quasi_velocity'], very_high_counter)
     DeployFlag = calculate_DeployFlag(sequence_df['zBuffer'], sequence_df['zBuffer_quasi_velocity'], prebuffer_size, knock_event_ended, knock_algo_HFA_Zlatched_Counter, knock_algo_Vel_Zlatched_Counter, knock_algo_HFA_Zlatched, knock_algo_Vel_Zlatched)
     Has_It_Knocked = calculate_Has_It_Knocked(DeployFlag[0], Very_High_Impact, ZImpactReturn)
