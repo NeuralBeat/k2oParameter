@@ -179,9 +179,9 @@ def calculate_DeployFlag(zBuffer, zBuffer_quasi_velocity, prebuffer_size, knock_
     else:
         result = True
     
-    print('Acc_Latched_Counter: ', count_zBuffer, '           ---> For positive Recognition required: <', Acc_Latched_Counter)
-    print('Vel_Latched_Counter: ', count_zBuffer_quasi_velocity, '            ---> For positive Recognition required: <', Vel_Latched_Counter)
-    print('DeployFlag: ', result,  '                 ---> For positive Recognition required: True')
+    #print('Acc_Latched_Counter: ', count_zBuffer, '           ---> For positive Recognition required: <', Acc_Latched_Counter)
+    #print('Vel_Latched_Counter: ', count_zBuffer_quasi_velocity, '            ---> For positive Recognition required: <', Vel_Latched_Counter)
+    #print('DeployFlag: ', result,  '                 ---> For positive Recognition required: True')
     return [result, count_zBuffer, count_zBuffer_quasi_velocity]
 
 ##### Calculate Has_It_Knocked & update flag
@@ -192,7 +192,7 @@ def calculate_Has_It_Knocked(DeployFlag, Very_High_Impact, ZImpactReturn):
     if DeployFlag and not Very_High_Impact and ZImpactReturn:
         result = True
 
-    print('Knock Detected: ', result, '             ---> If this flag is True, then the knock has been detected')
+    #print('Knock Detected: ', result, '             ---> If this flag is True, then the knock has been detected')
     return result
 
 
